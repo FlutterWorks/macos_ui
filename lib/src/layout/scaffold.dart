@@ -1,117 +1,219 @@
-import 'package:macos_ui/macos_ui.dart';
-import 'package:split_view/split_view.dart'; //todo: fork and migrate to nnbd
+import 'dart:math' as math;
 
-/// A basic screen-layout widget.
+import 'package:flutter/rendering.dart';
+import 'package:macos_ui/src/layout/content_area.dart';
+import 'package:macos_ui/src/layout/resizable_pane.dart';
+import 'package:macos_ui/src/layout/sidebar.dart';
+import 'package:macos_ui/src/layout/title_bar.dart';
+import 'package:macos_ui/src/layout/window.dart';
+import 'package:macos_ui/src/library.dart';
+import 'package:macos_ui/src/theme/macos_theme.dart';
+
+/// A macOS page widget.
 ///
-/// Provides a [body] for main content and a [sidebar] for secondary content
-/// (like navigation buttons). If no [sidebar] is specified, only the [body]
-/// will be shown.
-class Scaffold extends StatelessWidget {
-  const Scaffold({
+/// This widget fills the rest of the space in a [MacosWindow]
+class MacosScaffold extends StatefulWidget {
+  /// Creates a macOS page layout.
+  ///
+  /// The [children] can only include one [ContentArea], but can include
+  /// multiple [ResizablePane] widgets.
+  const MacosScaffold({
     Key? key,
-    required this.body,
-    this.sidebar,
+    this.children = const <Widget>[],
+    this.titleBar,
     this.backgroundColor,
-    this.sidebarBackgroundColor,
-    this.sidebarGripColor,
-    this.splitOffset = 0.25,
-    this.sidebarGripSize = 0.80,
-    this.resizeBoundary = 20.0,
-    this.sidebarBreakpoint = 0.0,
-  })  : assert(splitOffset > 0.0 && splitOffset < 1.0),
-        super(key: key);
+  }) : super(key: key);
 
-  /// Background color for the [body].
+  /// Specifies the background color for the Scaffold.
+  ///
+  /// The default colors from the theme would be used if no color is specified.
   final Color? backgroundColor;
 
-  /// Main content area.
-  final Widget body;
+  /// The children to display in the rest of the scaffold, excluding the
+  /// [Sidebar] and [TitleBar] regions.
+  final List<Widget> children;
 
-  /// Defines an area to which [sidebar] cannot be expanded or shrunk past on
-  /// the left and right.
-  final double resizeBoundary;
+  /// An app bar to display at the top of the scaffold.
+  final TitleBar? titleBar;
 
-  /// Secondary content area.
-  final Widget? sidebar;
+  @override
+  _MacosScaffoldState createState() => _MacosScaffoldState();
+}
 
-  /// Background color for the [sidebar]
-  final Color? sidebarBackgroundColor;
+class _MacosScaffoldState extends State<MacosScaffold> {
+  final _scrollController = ScrollController();
 
-  /// Defines a breakpoint for showing and hiding the [sidebar].
-  ///
-  /// If the window is resized along its width to a value below this one, the
-  /// sidebar will be hidden. If resized back above this value, the sidebar
-  /// will be shown again.
-  ///
-  /// Defaults to `0.0`, which means the sidebar will always be shown.
-  final double sidebarBreakpoint;
+  @override
+  void initState() {
+    super.initState();
+    _scrollController.addListener(() => setState(() {}));
+  }
 
-  /// The color of the body/sidebar splitter
-  final Color? sidebarGripColor;
-
-  /// The width of the split between [body] and [sidebar].
-  ///
-  /// Defaults to 0.80, which seems to be the default in Apple's macOS apps
-  /// (I eyeballed this so it's not perfect but it's very close).
-  final double sidebarGripSize;
-
-  /// Determines where the split between [body] and [sidebar] occurs.
-  ///
-  /// If specified, it must be a value greater than 0.0 and less than 1.0.
-  ///
-  /// Defaults to `0.25`, which is 1/4 of the available space from the left.
-  final double splitOffset;
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    debugCheckHasMacosTheme(context);
-
-    final style = context.theme;
-    late Color bodyColor;
-    late Color sidebarColor;
-    late Color gripColor;
-
-    if (style.brightness == Brightness.light) {
-      bodyColor = backgroundColor ?? CupertinoColors.systemBackground.color;
-      sidebarColor =
-          sidebarBackgroundColor ?? CupertinoColors.tertiarySystemBackground;
-      gripColor = sidebarGripColor ?? CupertinoColors.systemFill;
-    } else {
-      bodyColor =
-          backgroundColor ?? CupertinoColors.systemBackground.darkElevatedColor;
-      sidebarColor = sidebarBackgroundColor ??
-          CupertinoColors.tertiarySystemBackground.darkColor;
-      gripColor = sidebarGripColor ?? CupertinoColors.black;
-    }
-
-    return AnimatedContainer(
-      duration: style.mediumAnimationDuration ?? Duration.zero,
-      curve: style.animationCurve ?? Curves.linear,
-      color: bodyColor,
-      child: sidebar != null
-          ? LayoutBuilder(
-              builder: (context, constraints) {
-                if (constraints.maxWidth > sidebarBreakpoint) {
-                  return SplitView(
-                    positionLimit: resizeBoundary,
-                    initialWeight: splitOffset,
-                    gripSize: sidebarGripSize,
-                    gripColor: gripColor,
-                    view1: AnimatedContainer(
-                      duration: style.mediumAnimationDuration ?? Duration.zero,
-                      curve: style.animationCurve ?? Curves.linear,
-                      color: sidebarColor,
-                      child: sidebar,
-                    ),
-                    view2: body,
-                    viewMode: SplitViewMode.Horizontal,
-                  );
-                } else {
-                  return body;
-                }
-              },
-            )
-          : body,
+    assert(debugCheckHasMacosTheme(context));
+    assert(
+      widget.children.every((e) => e is ContentArea || e is ResizablePane),
+      'MacosScaffold children must either be ResizablePane or ContentArea',
     );
+    assert(
+      widget.children.whereType<ContentArea>().length <= 1,
+      'MacosScaffold cannot have more than one ContentArea widget',
+    );
+
+    final MacosThemeData theme = MacosTheme.of(context);
+    late Color backgroundColor = widget.backgroundColor ?? theme.canvasColor;
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final width = constraints.maxWidth;
+        final height = constraints.maxHeight;
+        final mediaQuery = MediaQuery.of(context);
+        final children = widget.children;
+
+        return Stack(
+          children: [
+            // Background color
+            Positioned.fill(
+              child: ColoredBox(color: backgroundColor),
+            ),
+
+            // Content Area
+            Positioned(
+              top: 0,
+              width: width,
+              height: height,
+              child: MediaQuery(
+                child: _ScaffoldBody(children: children),
+                data: mediaQuery.copyWith(
+                  padding: widget.titleBar != null
+                      ? EdgeInsets.only(top: widget.titleBar!.height)
+                      : null,
+                ),
+              ),
+            ),
+
+            // Title bar
+            if (widget.titleBar != null)
+              Positioned(
+                width: width,
+                height: widget.titleBar!.height,
+                child: widget.titleBar!,
+              ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _ScaffoldBody extends MultiChildRenderObjectWidget {
+  _ScaffoldBody({
+    List<Widget> children = const <Widget>[],
+  }) : super(children: children);
+
+  @override
+  RenderObject createRenderObject(BuildContext context) {
+    final index = children
+        .indexWhere((e) => e.key == const Key('macos_scaffold_content_area'));
+    return _RenderScaffoldBody(contentAreaIndex: index > -1 ? index : null);
+  }
+
+  @override
+  void updateRenderObject(
+    BuildContext context,
+    _RenderScaffoldBody renderObject,
+  ) {
+    final index = children
+        .indexWhere((e) => e.key == const Key('macos_scaffold_content_area'));
+    renderObject..contentAreaIndex = index > -1 ? index : null;
+  }
+}
+
+class _ParentData extends ContainerBoxParentData<RenderBox> {
+  int index = 0;
+  double width = 0.0;
+}
+
+class _RenderScaffoldBody extends RenderBox
+    with
+        ContainerRenderObjectMixin<RenderBox, _ParentData>,
+        RenderBoxContainerDefaultsMixin<RenderBox, _ParentData> {
+  _RenderScaffoldBody({
+    List<RenderBox> children = const <RenderBox>[],
+    this.contentAreaIndex,
+  }) {
+    addAll(children);
+  }
+
+  int? contentAreaIndex;
+
+  @override
+  void setupParentData(RenderBox child) {
+    if (child.parentData is! _ParentData) child.parentData = _ParentData();
+  }
+
+  @override
+  void paint(PaintingContext context, Offset offset) {
+    defaultPaint(context, offset);
+  }
+
+  @override
+  bool hitTestChildren(BoxHitTestResult result, {required Offset position}) {
+    return defaultHitTestChildren(result, position: position);
+  }
+
+  @override
+  void performLayout() {
+    final fullHeight = constraints.biggest.height;
+    final fullWidth = constraints.biggest.width;
+    double width = 0.0;
+    int childCount = 0;
+    RenderBox? child = firstChild;
+    double sum = 0;
+
+    final _children = getChildrenAsList();
+    if (contentAreaIndex != null) {
+      _children.removeAt(contentAreaIndex!);
+    }
+    _children.forEach((child) {
+      child.layout(const BoxConstraints.tightFor(), parentUsesSize: true);
+      sum += child.size.width;
+    });
+
+    while (child != null) {
+      final isContentArea = childCount == contentAreaIndex;
+      if (isContentArea) {
+        double contentAreaWidth = math.max(300, fullWidth - sum);
+        child.layout(
+          BoxConstraints(
+            maxWidth: contentAreaWidth,
+            maxHeight: fullHeight,
+            minHeight: fullHeight,
+          ).normalize(),
+          parentUsesSize: true,
+        );
+      } else {
+        child.layout(const BoxConstraints.tightFor(), parentUsesSize: true);
+      }
+      final childSize = child.size;
+      final _ParentData childParentData = child.parentData! as _ParentData;
+      childParentData.width = childSize.width;
+      if (childParentData.previousSibling != null) {
+        width +=
+            (childParentData.previousSibling?.parentData as _ParentData).width;
+      }
+      childParentData.offset = Offset(width, 0);
+      childParentData.index = childCount;
+      childCount++;
+      child = childParentData.nextSibling;
+    }
+    size = Size(fullWidth, fullHeight);
   }
 }
