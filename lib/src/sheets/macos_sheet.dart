@@ -6,16 +6,20 @@ const _kSheetBorderRadius = BorderRadius.all(Radius.circular(12.0));
 const EdgeInsets _defaultInsetPadding =
     EdgeInsets.symmetric(horizontal: 140.0, vertical: 48.0);
 
+/// {@template macosSheet}
 /// A modal dialog that’s attached to a particular window and prevents further
 /// interaction with the window until the sheet is dismissed.
+/// {@endtemplate}
 class MacosSheet extends StatelessWidget {
+  /// {@macro macosSheet}
   const MacosSheet({
-    Key? key,
+    super.key,
     required this.child,
     this.insetPadding = _defaultInsetPadding,
     this.insetAnimationDuration = const Duration(milliseconds: 100),
     this.insetAnimationCurve = Curves.decelerate,
-  }) : super(key: key);
+    this.backgroundColor,
+  });
 
   /// The widget below this widget in the tree.
   final Widget child;
@@ -32,6 +36,17 @@ class MacosSheet extends StatelessWidget {
   /// The curve to use for the animation shown when the system keyboard intrudes
   /// into the space that the dialog is placed in.
   final Curve insetAnimationCurve;
+
+  /// The background color for this widget.
+  ///
+  /// Defaults to
+  /// ```dart
+  /// brightness.resolve(
+  ///   CupertinoColors.systemGrey6.color,
+  ///   MacosColors.controlBackgroundColor.darkColor,
+  /// )
+  /// ```
+  final Color? backgroundColor;
 
   @override
   Widget build(BuildContext context) {
@@ -57,10 +72,11 @@ class MacosSheet extends StatelessWidget {
       curve: insetAnimationCurve,
       child: DecoratedBox(
         decoration: BoxDecoration(
-          color: brightness.resolve(
-            CupertinoColors.systemGrey6.color,
-            MacosColors.controlBackgroundColor.darkColor,
-          ),
+          color: backgroundColor ??
+              brightness.resolve(
+                CupertinoColors.systemGrey6.color,
+                MacosColors.controlBackgroundColor.darkColor,
+              ),
           borderRadius: _kSheetBorderRadius,
         ),
         child: Container(
@@ -120,12 +136,11 @@ class _MacosSheetRoute<T> extends PopupRoute<T> {
     bool barrierDismissible = false,
     Color? barrierColor = const Color(0x80000000),
     String? barrierLabel,
-    RouteSettings? settings,
+    super.settings,
   })  : _pageBuilder = pageBuilder,
         _barrierDismissible = barrierDismissible,
         _barrierLabel = barrierLabel,
-        _barrierColor = barrierColor,
-        super(settings: settings);
+        _barrierColor = barrierColor;
 
   final RoutePageBuilder _pageBuilder;
 
@@ -182,7 +197,7 @@ class _MacosSheetRoute<T> extends PopupRoute<T> {
     return ScaleTransition(
       scale: CurvedAnimation(
         parent: animation,
-        curve: _SubtleBounceCurve(),
+        curve: const _SubtleBounceCurve(),
       ),
       child: FadeTransition(
         opacity: CurvedAnimation(
@@ -196,7 +211,7 @@ class _MacosSheetRoute<T> extends PopupRoute<T> {
 }
 
 class _SubtleBounceCurve extends Curve {
-  _SubtleBounceCurve();
+  const _SubtleBounceCurve();
 
   @override
   double transform(double t) {

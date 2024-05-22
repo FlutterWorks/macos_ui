@@ -11,7 +11,7 @@ void main() {
       const safeDelta = 20.0;
       const overflowDelta = 500.0;
 
-      final sidebarBuilder = ({
+      sidebarBuilder({
         bool dragClosed = true,
         double? dragClosedBuffer,
         double? snapToStartBuffer,
@@ -25,24 +25,25 @@ void main() {
           dragClosedBuffer: dragClosedBuffer,
           snapToStartBuffer: snapToStartBuffer,
         );
-      };
+      }
 
-      final viewBuilder = (Sidebar sidebar) {
+      viewBuilder(Sidebar sidebar) {
         return MacosApp(
           home: MacosWindow(
+            disableWallpaperTinting: true,
             sidebar: sidebar,
             child: const MacosScaffold(
               children: [],
             ),
           ),
         );
-      };
+      }
 
-      final sidebarFinder = find.byType(AnimatedPositioned).first;
+      final sidebarFinder = find.byType(AnimatedPositioned).at(1);
       final resizerFinder = find.byType(AnimatedPositioned).at(3);
-      final backgroundFinder = find.byType(AnimatedPositioned).at(1);
+      final backgroundFinder = find.byType(AnimatedPositioned).at(0);
 
-      final expectSidebarOpen = (tester, {required double width}) {
+      expectSidebarOpen(tester, {required double width}) {
         expect(
           tester.widget<AnimatedPositioned>(sidebarFinder).width,
           width,
@@ -51,9 +52,9 @@ void main() {
           tester.widget<AnimatedPositioned>(backgroundFinder).left,
           width,
         );
-      };
+      }
 
-      final expectSidebarClosed = (tester) {
+      expectSidebarClosed(tester) {
         expect(
           tester.widget<AnimatedPositioned>(sidebarFinder).width,
           minWidth,
@@ -62,7 +63,7 @@ void main() {
           tester.widget<AnimatedPositioned>(backgroundFinder).left,
           0,
         );
-      };
+      }
 
       testWidgets('initial width equals startWidth', (tester) async {
         final sidebar = sidebarBuilder();
@@ -70,6 +71,8 @@ void main() {
         await tester.pumpWidget(view);
 
         expectSidebarOpen(tester, width: startWidth);
+
+        await tester.pump(Duration.zero);
       });
 
       test('dragClosedBuffer defaults to half minWidth', () {
@@ -84,6 +87,8 @@ void main() {
         await tester.pump();
 
         expectSidebarOpen(tester, width: startWidth + safeDelta);
+
+        await tester.pump(Duration.zero);
       });
 
       testWidgets('dragging wider respects maxWidth', (tester) async {
@@ -93,6 +98,8 @@ void main() {
         await tester.pump();
 
         expectSidebarOpen(tester, width: maxWidth);
+
+        await tester.pump(Duration.zero);
       });
 
       testWidgets('drag events past maxWidth have no effect', (tester) async {
@@ -106,6 +113,8 @@ void main() {
         await tester.pump();
 
         expectSidebarOpen(tester, width: maxWidth);
+
+        await tester.pump(Duration.zero);
       });
 
       testWidgets('dragging narrower works', (tester) async {
@@ -115,19 +124,21 @@ void main() {
         await tester.pump();
 
         expectSidebarOpen(tester, width: startWidth - safeDelta);
+
+        await tester.pump(Duration.zero);
       });
 
       group('when dragClosed is true', () {
         testWidgets(
           'dragging narrower past minWidth but before minWidth - dragClosedBuffer does not close the sidebar',
           (tester) async {
-            final dragClosedBuffer = 20.0;
+            const dragClosedBuffer = 20.0;
             final view =
                 viewBuilder(sidebarBuilder(dragClosedBuffer: dragClosedBuffer));
             await tester.pumpWidget(view);
             await tester.drag(
               resizerFinder,
-              Offset(
+              const Offset(
                 -((startWidth - minWidth) + dragClosedBuffer / 2),
                 0,
               ),
@@ -135,6 +146,8 @@ void main() {
             await tester.pump();
 
             expectSidebarOpen(tester, width: minWidth);
+
+            await tester.pump(Duration.zero);
           },
         );
         testWidgets(
@@ -146,6 +159,8 @@ void main() {
             await tester.pump();
 
             expectSidebarClosed(tester);
+
+            await tester.pump(Duration.zero);
           },
         );
 
@@ -172,6 +187,8 @@ void main() {
             await tester.pump();
 
             expectSidebarOpen(tester, width: startWidth - safeDelta);
+
+            await tester.pump(Duration.zero);
           },
         );
 
@@ -186,6 +203,8 @@ void main() {
           await tester.pump();
 
           expectSidebarClosed(tester);
+
+          await tester.pump(Duration.zero);
         });
       });
 
@@ -199,6 +218,8 @@ void main() {
             await tester.pump();
 
             expectSidebarOpen(tester, width: minWidth);
+
+            await tester.pump(Duration.zero);
           },
         );
 
@@ -213,11 +234,13 @@ void main() {
           await tester.pump();
 
           expectSidebarOpen(tester, width: minWidth);
+
+          await tester.pump(Duration.zero);
         });
       });
 
       group('when snapToStartBuffer is set', () {
-        final snapToStartBuffer = 20.0;
+        const snapToStartBuffer = 20.0;
 
         testWidgets(
           'dragging from startWidth has no effect until it passes snapToStartBuffer',
@@ -231,18 +254,20 @@ void main() {
 
             final gesture =
                 await tester.startGesture(tester.getCenter(resizerFinder));
-            await gesture.moveBy(Offset(snapToStartBuffer, 0));
+            await gesture.moveBy(const Offset(snapToStartBuffer, 0));
             await tester.pump();
 
             expectSidebarOpen(tester, width: startWidth);
 
-            await gesture.moveBy(Offset(snapToStartBuffer, 0));
+            await gesture.moveBy(const Offset(snapToStartBuffer, 0));
             await tester.pump();
 
             expectSidebarOpen(
               tester,
               width: startWidth + snapToStartBuffer * 2,
             );
+
+            await tester.pump(Duration.zero);
           },
         );
 
@@ -256,7 +281,10 @@ void main() {
             );
             await tester.pumpWidget(view);
 
-            await tester.drag(resizerFinder, Offset(snapToStartBuffer * 2, 0));
+            await tester.drag(
+              resizerFinder,
+              const Offset(snapToStartBuffer * 2, 0),
+            );
             await tester.pump();
 
             expectSidebarOpen(
@@ -266,10 +294,12 @@ void main() {
 
             await tester.drag(
               resizerFinder,
-              Offset(snapToStartBuffer * -1.5, 0),
+              const Offset(snapToStartBuffer * -1.5, 0),
             );
             await tester.pump();
             expectSidebarOpen(tester, width: startWidth);
+
+            await tester.pump(Duration.zero);
           },
         );
       });

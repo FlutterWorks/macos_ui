@@ -6,8 +6,8 @@ import 'package:macos_ui/src/library.dart';
 ///
 /// A convenience widget that wraps a number of widgets that are commonly
 /// required for an macOS-design targeting application. It builds upon a
-/// [WidgetsApp] by macOS specific defaulting such as fonts and scrolling
-/// physics.
+/// [CupertinoApp] by adding macOS specific defaulting such as themes and
+/// scrolling physics.
 ///
 /// The [MacosApp] configures the top-level [Navigator] to search for routes
 /// in the following order:
@@ -35,11 +35,11 @@ class MacosApp extends StatefulWidget {
   /// application is launched with an intent that specifies an otherwise
   /// unsupported route.
   ///
-  /// This class creates an instance of [WidgetsApp].
+  /// This class creates an instance of [CupertinoApp].
   ///
   /// The boolean arguments, [routes], and [navigatorObservers], must not be null.
   const MacosApp({
-    Key? key,
+    super.key,
     this.navigatorKey,
     this.home,
     Map<String, Widget Function(BuildContext)> this.routes =
@@ -75,15 +75,16 @@ class MacosApp extends StatefulWidget {
         routeInformationParser = null,
         routerDelegate = null,
         backButtonDispatcher = null,
-        super(key: key);
+        routerConfig = null;
 
   /// Creates a [MacosApp] that uses the [Router] instead of a [Navigator].
   MacosApp.router({
-    Key? key,
+    super.key,
     this.routeInformationProvider,
-    required RouteInformationParser<Object> this.routeInformationParser,
-    required RouterDelegate<Object> this.routerDelegate,
+    this.routeInformationParser,
+    this.routerDelegate,
     this.backButtonDispatcher,
+    this.routerConfig,
     this.builder,
     this.title = '',
     this.onGenerateTitle,
@@ -105,7 +106,8 @@ class MacosApp extends StatefulWidget {
     this.themeMode,
     this.theme,
     this.darkTheme,
-  })  : assert(supportedLocales.isNotEmpty),
+  })  : assert(routerDelegate != null || routerConfig != null),
+        assert(supportedLocales.isNotEmpty),
         navigatorObservers = null,
         navigatorKey = null,
         onGenerateRoute = null,
@@ -113,8 +115,7 @@ class MacosApp extends StatefulWidget {
         onGenerateInitialRoutes = null,
         onUnknownRoute = null,
         routes = null,
-        initialRoute = null,
-        super(key: key);
+        initialRoute = null;
 
   /// {@macro flutter.widgets.widgetsApp.navigatorKey}
   final GlobalKey<NavigatorState>? navigatorKey;
@@ -158,6 +159,9 @@ class MacosApp extends StatefulWidget {
 
   /// {@macro flutter.widgets.widgetsApp.backButtonDispatcher}
   final BackButtonDispatcher? backButtonDispatcher;
+
+  /// {@macro flutter.widgets.widgetsApp.routerConfig}
+  final RouterConfig<Object>? routerConfig;
 
   /// {@macro flutter.widgets.widgetsApp.builder}
   final TransitionBuilder? builder;
@@ -298,63 +302,73 @@ class MacosApp extends StatefulWidget {
   final MacosThemeData? theme;
 
   @override
-  _MacosAppState createState() => _MacosAppState();
+  State<MacosApp> createState() => _MacosAppState();
 }
 
 class _MacosAppState extends State<MacosApp> {
-  bool get _usesRouter => widget.routerDelegate != null;
-
-  @override
-  Widget build(BuildContext context) {
-    // leaves room for assertions, etc
-    Widget result = _buildMacosApp(context);
-    return result;
-  }
-
-  Iterable<LocalizationsDelegate<dynamic>> get _localizationsDelegates sync* {
-    if (widget.localizationsDelegates != null)
-      yield* widget.localizationsDelegates!;
-    yield DefaultMaterialLocalizations.delegate;
-    yield DefaultCupertinoLocalizations.delegate;
-    yield DefaultWidgetsLocalizations.delegate;
-  }
+  bool get _usesRouter =>
+      widget.routerDelegate != null || widget.routerConfig != null;
 
   Widget _macosBuilder(BuildContext context, Widget? child) {
-    final mode = widget.themeMode ?? ThemeMode.system;
-    final platformBrightness = MediaQuery.platformBrightnessOf(context);
-    final useDarkTheme = mode == ThemeMode.dark ||
-        (mode == ThemeMode.system && platformBrightness == Brightness.dark);
+    return StreamBuilder<bool>(
+        stream: WindowMainStateListener.instance.onChanged,
+        builder: (context, _) {
+          return StreamBuilder(
+              stream: AccentColorListener.instance.onChanged,
+              builder: (context, _) {
+                final mode = widget.themeMode ?? ThemeMode.system;
+                final platformBrightness =
+                    MediaQuery.platformBrightnessOf(context);
+                final useDarkTheme = mode == ThemeMode.dark ||
+                    (mode == ThemeMode.system &&
+                        platformBrightness == Brightness.dark);
 
-    late MacosThemeData theme;
-    if (useDarkTheme) {
-      theme = widget.darkTheme ?? MacosThemeData.dark();
-    } else {
-      theme = widget.theme ?? MacosThemeData.light();
-    }
+                final accentColor =
+                    AccentColorListener.instance.currentAccentColor;
+                final isMainWindow =
+                    WindowMainStateListener.instance.isMainWindow;
 
-    return MacosTheme(
-      data: theme,
-      child: DefaultTextStyle(
-        style: TextStyle(color: theme.typography.body.color),
-        child: widget.builder != null
-            // See the MaterialApp source code for the explanation for
-            // wrapping a builder in a builder
-            ? Builder(
-                builder: (context) {
-                  // An Overlay is used here because MacosTooltip needs an
-                  // Overlay as an ancestor in the widget tree.
-                  return Overlay(
-                    initialEntries: [
-                      OverlayEntry(
-                        builder: (context) => widget.builder!(context, child),
-                      ),
-                    ],
-                  );
-                },
-              )
-            : child ?? const SizedBox.shrink(),
-      ),
-    );
+                late MacosThemeData theme;
+                if (useDarkTheme) {
+                  theme = widget.darkTheme ??
+                      MacosThemeData.dark(
+                        accentColor: accentColor,
+                        isMainWindow: isMainWindow,
+                      );
+                } else {
+                  theme = widget.theme ??
+                      MacosThemeData.light(
+                        accentColor: accentColor,
+                        isMainWindow: isMainWindow,
+                      );
+                }
+
+                return MacosTheme(
+                  data: theme,
+                  child: DefaultTextStyle(
+                    style: TextStyle(color: theme.typography.body.color),
+                    child: widget.builder != null
+                        // See the MaterialApp source code for the explanation for
+                        // wrapping a builder in a builder
+                        ? Builder(
+                            builder: (context) {
+                              // An Overlay is used here because MacosTooltip needs an
+                              // Overlay as an ancestor in the widget tree.
+                              return Overlay(
+                                initialEntries: [
+                                  OverlayEntry(
+                                    builder: (context) =>
+                                        widget.builder!(context, child),
+                                  ),
+                                ],
+                              );
+                            },
+                          )
+                        : child ?? const SizedBox.shrink(),
+                  ),
+                );
+              });
+        });
   }
 
   Widget _buildMacosApp(BuildContext context) {
@@ -363,9 +377,10 @@ class _MacosAppState extends State<MacosApp> {
       return c.CupertinoApp.router(
         key: GlobalObjectKey(this),
         routeInformationProvider: widget.routeInformationProvider,
-        routeInformationParser: widget.routeInformationParser!,
-        routerDelegate: widget.routerDelegate!,
+        routeInformationParser: widget.routeInformationParser,
+        routerDelegate: widget.routerDelegate,
         backButtonDispatcher: widget.backButtonDispatcher,
+        routerConfig: widget.routerConfig,
         builder: _macosBuilder,
         title: widget.title,
         onGenerateTitle: widget.onGenerateTitle,
@@ -382,6 +397,7 @@ class _MacosAppState extends State<MacosApp> {
         debugShowCheckedModeBanner: widget.debugShowCheckedModeBanner,
         shortcuts: widget.shortcuts,
         actions: widget.actions,
+        scrollBehavior: widget.scrollBehavior,
       );
     }
     return c.CupertinoApp(
@@ -410,11 +426,27 @@ class _MacosAppState extends State<MacosApp> {
       debugShowCheckedModeBanner: widget.debugShowCheckedModeBanner,
       shortcuts: widget.shortcuts,
       actions: widget.actions,
+      scrollBehavior: widget.scrollBehavior,
     );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // leaves room for assertions, etc
+    return _buildMacosApp(context);
+  }
+
+  Iterable<LocalizationsDelegate<dynamic>> get _localizationsDelegates sync* {
+    if (widget.localizationsDelegates != null) {
+      yield* widget.localizationsDelegates!;
+    }
+    yield DefaultMaterialLocalizations.delegate;
+    yield DefaultCupertinoLocalizations.delegate;
+    yield DefaultWidgetsLocalizations.delegate;
   }
 }
 
-/// Describes how [Scrollable] widgets behave for [FluentApp]s.
+/// Describes how [Scrollable] widgets behave for [MacosApp]s.
 ///
 /// {@macro flutter.widgets.scrollBehavior}
 ///
@@ -429,6 +461,11 @@ class MacosScrollBehavior extends ScrollBehavior {
   /// [MacosScrollbar]s based on the current platform and provided [ScrollableDetails].
   const MacosScrollBehavior();
 
+  /*@override
+  Set<PointerDeviceKind> get dragDevices => {
+    PointerDeviceKind.mouse,
+  };*/
+
   @override
   Widget buildScrollbar(context, child, details) {
     // When modifying this function, consider modifying the implementation in
@@ -442,8 +479,8 @@ class MacosScrollBehavior extends ScrollBehavior {
           case TargetPlatform.macOS:
           case TargetPlatform.windows:
             return MacosScrollbar(
-              child: child,
               controller: details.controller,
+              child: child,
             );
           case TargetPlatform.android:
           case TargetPlatform.fuchsia:

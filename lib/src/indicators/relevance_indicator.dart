@@ -5,6 +5,7 @@ import 'package:macos_ui/src/library.dart';
 /// A relevance indicator communicates relevancy using a series
 /// of vertical bars. It often appears in a list of search results
 /// for reference when sorting and comparing multiple items.
+@Deprecated('Apple no longer supports this component.')
 class RelevanceIndicator extends StatelessWidget {
   /// Creates a relevance indicator.
   ///
@@ -14,19 +15,18 @@ class RelevanceIndicator extends StatelessWidget {
   ///
   /// [barHeight] and [barWidth] must be non-null
   const RelevanceIndicator({
-    Key? key,
+    super.key,
     required this.value,
     this.amount = 20,
     this.barHeight = 20,
     this.barWidth = 0.8,
     this.selectedColor = CupertinoColors.label,
-    this.unselectedolor = CupertinoColors.secondaryLabel,
+    this.unselectedColor = CupertinoColors.secondaryLabel,
     this.semanticLabel,
   })  : assert(value >= 0 && value <= amount),
         assert(amount > 0),
         assert(barHeight >= 0),
-        assert(barWidth >= 0),
-        super(key: key);
+        assert(barWidth >= 0);
 
   /// The current value of the indicator. It must be in the range
   /// of 0 to [amount]
@@ -47,7 +47,7 @@ class RelevanceIndicator extends StatelessWidget {
 
   /// The color of each bar when it's not selected. [CupertinoColors.secondaryLabel]
   /// is used by default
-  final Color unselectedolor;
+  final Color unselectedColor;
 
   /// The semantic label used by screen readers.
   final String? semanticLabel;
@@ -60,7 +60,7 @@ class RelevanceIndicator extends StatelessWidget {
     properties.add(DoubleProperty('barHeight', barHeight));
     properties.add(DoubleProperty('barWidth', barWidth));
     properties.add(ColorProperty('selectedColor', selectedColor));
-    properties.add(ColorProperty('unselectedColor', unselectedolor));
+    properties.add(ColorProperty('unselectedColor', unselectedColor));
     properties.add(StringProperty('semanticLabel', semanticLabel));
   }
 
@@ -80,7 +80,7 @@ class RelevanceIndicator extends StatelessWidget {
             width: barWidth,
             margin: EdgeInsets.only(right: index + 1 == amount ? 0 : 2.5),
             color: MacosDynamicColor.resolve(
-              selected ? selectedColor : unselectedolor,
+              selected ? selectedColor : unselectedColor,
               context,
             ),
           );

@@ -1,3 +1,5 @@
+// ignore_for_file: avoid_print
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -7,22 +9,22 @@ void main() {
   group('MacosPopupButton theme tests', () {
     test('lerps from light to dark', () {
       final actual = MacosPopupButtonThemeData.lerp(
-        _MacosPopupButtonTheme,
-        _MacosPopupButtonThemeDark,
+        _macosPopupButtonTheme,
+        _macosPopupButtonThemeDark,
         1,
       );
 
-      expect(actual, _MacosPopupButtonThemeDark);
+      expect(actual, _macosPopupButtonThemeDark);
     });
 
     test('lerps from dark to light', () {
       final actual = MacosPopupButtonThemeData.lerp(
-        _MacosPopupButtonThemeDark,
-        _MacosPopupButtonTheme,
+        _macosPopupButtonThemeDark,
+        _macosPopupButtonTheme,
         1,
       );
 
-      expect(actual, _MacosPopupButtonTheme);
+      expect(actual, _macosPopupButtonTheme);
     });
 
     test('copyWith, hashCode, ==', () {
@@ -52,8 +54,8 @@ void main() {
       expect(
         description,
         [
-          'highlightColor: Color(0xff8e8e93)',
-          'backgroundColor: Color(0xff0433ff)',
+          'highlightColor: MacosColor(0xff8e8e93)',
+          'backgroundColor: MacosColor(0xff0433ff)',
           'popupColor: Color(0x19000000)',
         ],
       );
@@ -65,10 +67,11 @@ void main() {
       await tester.pumpWidget(
         MacosApp(
           home: MacosWindow(
+            disableWallpaperTinting: true,
             child: MacosScaffold(
               children: [
                 ContentArea(
-                  builder: (context, scrollController) {
+                  builder: (context, _) {
                     capturedContext = context;
                     return MacosPopupButton<String>(
                       value: popupValue,
@@ -93,19 +96,19 @@ void main() {
 
       final theme = MacosPopupButtonTheme.of(capturedContext);
       expect(theme.backgroundColor, const Color(0xffffffff));
-      expect(theme.highlightColor, const Color(0xff007aff));
+      expect(theme.highlightColor, const MacosColor(0xbe0981ff));
       expect(theme.popupColor, const Color(0xfff2f2f7));
     });
   });
 }
 
-final _MacosPopupButtonTheme = MacosPopupButtonThemeData(
+final _macosPopupButtonTheme = MacosPopupButtonThemeData(
   backgroundColor: MacosColors.appleRed,
   highlightColor: MacosColors.systemGrayColor.color,
   popupColor: MacosColors.controlColor.color,
 );
 
-final _MacosPopupButtonThemeDark = MacosPopupButtonThemeData(
+final _macosPopupButtonThemeDark = MacosPopupButtonThemeData(
   backgroundColor: MacosColors.appleBlue,
   highlightColor: MacosColors.systemGrayColor.darkColor,
   popupColor: MacosColors.controlColor.darkColor,

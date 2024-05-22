@@ -3,19 +3,170 @@ import 'package:macos_ui/src/library.dart';
 /// An immutable 32 bit color value in ARGB format.
 class MacosColor extends Color {
   /// Construct a color from the lower 32 bits of an [int].
-  const MacosColor(int value) : super(value);
+  const MacosColor(super.value);
+
+  /// Construct a color from the lower 8 bits of four integers.
+  ///
+  /// * `a` is the alpha value, with 0 being transparent and 255 being fully
+  ///   opaque.
+  /// * `r` is [red], from 0 to 255.
+  /// * `g` is [green], from 0 to 255.
+  /// * `b` is [blue], from 0 to 255.
+  ///
+  /// Out of range values are brought into range using modulo 255.
+  ///
+  /// See also [fromRGBO], which takes the alpha value as a floating point
+  /// value.
+  const MacosColor.fromARGB(super.a, super.r, super.g, super.b)
+      : super.fromARGB();
+
+  /// Create a color from red, green, blue, and opacity, similar to `rgba()`
+  /// in CSS.
+  ///
+  /// * `r` is [red], from 0 to 255.
+  /// * `g` is [green], from 0 to 255.
+  /// * `b` is [blue], from 0 to 255.
+  /// * `opacity` is alpha channel of this color as a double, with 0.0 being
+  ///   transparent and 1.0 being fully opaque.
+  ///
+  /// Out of range values are brought into range using modulo 255.
+  ///
+  /// See also [fromARGB], which takes the opacity as an integer value.
+  const MacosColor.fromRGBO(super.r, super.g, super.b, super.opcacity)
+      : super.fromRGBO();
 
   /// Linearly interpolate between two [MacosColor]s.
   static MacosColor lerp(MacosColor a, MacosColor b, double t) {
     final Color? color = Color.lerp(a, b, t);
     return MacosColor(color!.value);
   }
+
+  /// Combine the foreground color as a transparent color over top
+  /// of a background color, and return the resulting combined color.
+  ///
+  /// This uses standard alpha blending ("SRC over DST") rules to produce a
+  /// blended color from two colors. This can be used as a performance
+  /// enhancement when trying to avoid needless alpha blending compositing
+  /// operations for two things that are solid colors with the same shape, but
+  /// overlay each other: instead, just paint one with the combined color.
+  static MacosColor alphaBlend(MacosColor foreground, MacosColor background) {
+    final int alpha = foreground.alpha;
+    if (alpha == 0x00) {
+      // Foreground completely transparent.
+      return background;
+    }
+    final int invAlpha = 0xff - alpha;
+    int backAlpha = background.alpha;
+    if (backAlpha == 0xff) {
+      // Opaque background case
+      return MacosColor.fromARGB(
+        0xff,
+        (alpha * foreground.red + invAlpha * background.red) ~/ 0xff,
+        (alpha * foreground.green + invAlpha * background.green) ~/ 0xff,
+        (alpha * foreground.blue + invAlpha * background.blue) ~/ 0xff,
+      );
+    } else {
+      // General case
+      backAlpha = (backAlpha * invAlpha) ~/ 0xff;
+      final int outAlpha = alpha + backAlpha;
+      assert(outAlpha != 0x00);
+      return MacosColor.fromARGB(
+        outAlpha,
+        (foreground.red * alpha + background.red * backAlpha) ~/ outAlpha,
+        (foreground.green * alpha + background.green * backAlpha) ~/ outAlpha,
+        (foreground.blue * alpha + background.blue * backAlpha) ~/ outAlpha,
+      );
+    }
+  }
+
+  /// Returns an alpha value representative of the provided [opacity] value.
+  ///
+  /// The [opacity] value may not be null.
+  static int getAlphaFromOpacity(double opacity) {
+    return (opacity.clamp(0.0, 1.0) * 255).round();
+  }
+
+  /// Returns a new color that matches this color with the alpha channel
+  /// replaced with the given `opacity` (which ranges from 0.0 to 1.0).
+  ///
+  /// Out of range values will have unexpected effects.
+  @override
+  MacosColor withOpacity(double opacity) {
+    assert(opacity >= 0.0 && opacity <= 1.0);
+    return withAlpha((255.0 * opacity).round());
+  }
+
+  /// Returns a new color that matches this color with the alpha channel
+  /// replaced with `a` (which ranges from 0 to 255).
+  ///
+  /// Out of range values will have unexpected effects.
+  @override
+  MacosColor withAlpha(int a) {
+    return MacosColor.fromARGB(a, red, green, blue);
+  }
+
+  /// Darkens a [MacosColor] by a [percent] amount (100 = black) without
+  /// changing the tint of the color.
+  static MacosColor darken(MacosColor c, [int percent = 10]) {
+    assert(1 <= percent && percent <= 100);
+    var f = 1 - percent / 100;
+    return MacosColor.fromARGB(
+      c.alpha,
+      (c.red * f).round(),
+      (c.green * f).round(),
+      (c.blue * f).round(),
+    );
+  }
+
+  /// Lightens a [MacosColor] by a [percent] amount (100 = white) without
+  /// changing the tint of the color
+  static MacosColor lighten(MacosColor c, [int percent = 10]) {
+    assert(1 <= percent && percent <= 100);
+    var p = percent / 100;
+    return MacosColor.fromARGB(
+      c.alpha,
+      c.red + ((255 - c.red) * p).round(),
+      c.green + ((255 - c.green) * p).round(),
+      c.blue + ((255 - c.blue) * p).round(),
+    );
+  }
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) {
+      return true;
+    }
+    if (other.runtimeType != runtimeType) {
+      return false;
+    }
+    return other is MacosColor && other.value == value;
+  }
+
+  @override
+  int get hashCode => value.hashCode;
+
+  @override
+  String toString() {
+    return 'MacosColor(0x${value.toRadixString(16).padLeft(8, '0')})';
+  }
+}
+
+extension ColorX on Color {
+  /// Returns a [MacosColor] with the same color values as this [Color].
+  MacosColor toMacosColor() {
+    return MacosColor(value);
+  }
 }
 
 /// A collection of color values lifted from the macOS system color picker.
 class MacosColors {
+  /// A fully transparent color.
   static const Color transparent = MacosColor(0x00000000);
+
+  /// A fully opaque black color.
   static const black = MacosColor(0xff000000);
+
+  /// A fully opaque white color.
   static const white = MacosColor(0xffffffff);
 
   /// The text of a label containing primary content.
@@ -209,6 +360,25 @@ class MacosColors {
       CupertinoDynamicColor.withBrightness(
     color: Color.fromRGBO(0, 103, 244, 0.25),
     darkColor: Color.fromRGBO(26, 169, 255, 0.3),
+  );
+
+  /// The color of the thumb of [MacosSlider].
+  static const sliderThumbColor = CupertinoDynamicColor.withBrightness(
+    color: Color.fromRGBO(255, 255, 255, 1),
+    darkColor: Color.fromRGBO(152, 152, 157, 1),
+  );
+
+  /// The color of the tick marks which are not selected (the portion to the right of the thumb) of [MacosSlider].
+  static const tickBackgroundColor = CupertinoDynamicColor.withBrightness(
+    color: Color.fromRGBO(220, 220, 220, 1),
+    darkColor: Color.fromRGBO(70, 70, 70, 1),
+  );
+
+  /// The color of the slider in [MacosSlider] which is not selected (the portion
+  /// to the right of the thumb).
+  static const sliderBackgroundColor = CupertinoDynamicColor.withBrightness(
+    color: Color.fromRGBO(0, 0, 0, 0.1),
+    darkColor: Color.fromRGBO(255, 255, 255, 0.1),
   );
 
   /// The accent color selected by the user in system preferences.

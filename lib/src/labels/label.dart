@@ -9,12 +9,12 @@ import 'package:macos_ui/src/library.dart';
 class Label extends StatelessWidget {
   /// Creates a label.
   const Label({
-    Key? key,
+    super.key,
     this.icon,
     required this.text,
     this.child,
-    this.yAlignment = CrossAxisAlignment.start,
-  }) : super(key: key);
+    this.crossAxisAlignment = CrossAxisAlignment.start,
+  });
 
   /// The icon used by the label. If non-null, it's rendered horizontally
   /// before [text].
@@ -29,7 +29,8 @@ class Label extends StatelessWidget {
   /// The widget at the right of [text].
   final Widget? child;
 
-  final CrossAxisAlignment yAlignment;
+  /// The cross-axis alignment of the label.
+  final CrossAxisAlignment crossAxisAlignment;
 
   @override
   Widget build(BuildContext context) {
@@ -43,7 +44,7 @@ class Label extends StatelessWidget {
       child: this.text,
     );
     return Row(
-      crossAxisAlignment: yAlignment,
+      crossAxisAlignment: crossAxisAlignment,
       mainAxisSize: MainAxisSize.min,
       children: [
         if (icon != null)

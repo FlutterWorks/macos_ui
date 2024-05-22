@@ -34,7 +34,7 @@ class CapacityIndicator extends StatelessWidget {
   ///
   /// [value] must be in range of 0 to 100.
   const CapacityIndicator({
-    Key? key,
+    super.key,
     required this.value,
     this.onChanged,
     this.discrete = false,
@@ -43,8 +43,7 @@ class CapacityIndicator extends StatelessWidget {
     this.borderColor = CupertinoColors.tertiaryLabel,
     this.backgroundColor = CupertinoColors.tertiarySystemGroupedBackground,
     this.semanticLabel,
-  })  : assert(value >= 0 && value <= 100),
-        super(key: key);
+  }) : assert(value >= 0 && value <= 100);
 
   /// The current value of the indicator. Must be in the range of 0 to 100.
   final double value;
@@ -91,7 +90,7 @@ class CapacityIndicator extends StatelessWidget {
   }
 
   void _handleUpdate(Offset lp, double width) {
-    double value = (lp.dx / width) * splits;
+    double value = (lp.dx / width) * 100 / splits;
     onChanged?.call(value.clamp(0.0, 100.0));
   }
 
@@ -109,7 +108,7 @@ class CapacityIndicator extends StatelessWidget {
           if (width.isInfinite) width = 100;
           final splitWidth = width / splits;
           if (discrete) {
-            final fillToIndex = value / splits - 1;
+            final fillToIndex = (value / 100) * splits - 1;
             return SizedBox(
               width: width,
               child: GestureDetector(
@@ -168,23 +167,28 @@ class CapacityIndicatorCell extends StatelessWidget {
   ///
   /// [value] must be in the range of 0 to 100
   const CapacityIndicatorCell({
-    Key? key,
+    super.key,
     this.value = 100,
     this.color = CupertinoColors.systemGreen,
     this.borderColor = CupertinoColors.tertiaryLabel,
     this.backgroundColor = CupertinoColors.tertiarySystemGroupedBackground,
-  })  : assert(value >= 0 && value <= 100),
-        super(key: key);
+  }) : assert(value >= 0 && value <= 100);
 
+  /// The color of the cell.
   final Color color;
+
+  /// The background color of the cell.
   final Color backgroundColor;
+
+  /// The border color of the cell.
   final Color borderColor;
 
+  /// The current value of the cell.
   final double value;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return SizedBox(
       height: 16,
       child: CustomPaint(
         painter: _CapacityCellPainter(
@@ -213,7 +217,7 @@ class _CapacityCellPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final radius = 2.0;
+    const radius = 2.0;
 
     /// Draw background
     canvas.drawRRect(
@@ -224,8 +228,8 @@ class _CapacityCellPainter extends CustomPainter {
     /// Draw inside
     canvas.drawRRect(
       BorderRadius.horizontal(
-        left: Radius.circular(radius),
-        right: value == 100 ? Radius.circular(radius) : Radius.zero,
+        left: const Radius.circular(radius),
+        right: value == 100 ? const Radius.circular(radius) : Radius.zero,
       ).toRRect(
         Offset.zero & Size(size.width * (value / 100).clamp(0, 1), size.height),
       ),

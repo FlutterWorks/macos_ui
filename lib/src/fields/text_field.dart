@@ -26,7 +26,7 @@ const BorderSide _kDefaultRoundedBorderSide = BorderSide(
     darkColor: Color(0x33FFFFFF),
   ),
   style: BorderStyle.solid,
-  width: 0.0,
+  width: 0.1,
 );
 
 const Border _kDefaultRoundedBorder = Border(
@@ -36,27 +36,31 @@ const Border _kDefaultRoundedBorder = Border(
   right: _kDefaultRoundedBorderSide,
 );
 
-const BoxDecoration _kDefaultRoundedBorderDecoration = BoxDecoration(
+const BoxDecoration kDefaultRoundedBorderDecoration = BoxDecoration(
   color: CupertinoDynamicColor.withBrightness(
     color: CupertinoColors.white,
     darkColor: CupertinoColors.black,
   ),
   border: _kDefaultRoundedBorder,
+  boxShadow: [
+    BoxShadow(
+      color: CupertinoDynamicColor.withBrightness(
+        color: Color.fromRGBO(0, 0, 0, 0.1),
+        darkColor: Color.fromRGBO(255, 255, 255, 0.1),
+      ),
+      offset: Offset(0, 1),
+    ),
+  ],
   borderRadius: BorderRadius.all(Radius.circular(7.0)),
 );
 
-const BoxDecoration _kDefaultFocusedBorderDecoration = BoxDecoration(
+const BoxDecoration kDefaultFocusedBorderDecoration = BoxDecoration(
   borderRadius: BorderRadius.all(Radius.circular(7.0)),
 );
 
 const Color _kDisabledBackground = CupertinoDynamicColor.withBrightness(
-  color: Color(0xFFFAFAFA),
-  darkColor: Color(0xFF050505),
-);
-
-const _kClearButtonColor = CupertinoDynamicColor.withBrightness(
-  color: Color(0x33000000),
-  darkColor: Color(0x33FFFFFF),
+  color: Color(0xfff6f6f9),
+  darkColor: Color.fromRGBO(255, 255, 255, 0.01),
 );
 
 // An eyeballed value that moves the cursor slightly left of where it is
@@ -101,7 +105,7 @@ class _TextFieldSelectionGestureDetectorBuilder
   final _MacosTextFieldState _state;
 
   @override
-  void onSingleTapUp(TapUpDetails details) {
+  void onSingleTapUp(TapDragUpDetails details) {
     // Because TextSelectionGestureDetector listens to taps that happen on
     // widgets in front of it, tapping the clear button will also trigger
     // this handler. If the clear button widget recognizes the up event,
@@ -120,11 +124,14 @@ class _TextFieldSelectionGestureDetectorBuilder
     }
     _state._requestKeyboard();
     if (_state.widget.onTap != null) _state.widget.onTap!();
+
+    super.onSingleTapUp(details);
   }
 
   @override
-  void onDragSelectionEnd(DragEndDetails details) {
+  void onDragSelectionEnd(TapDragEndDetails details) {
     _state._requestKeyboard();
+    super.onDragSelectionEnd(details);
   }
 }
 
@@ -227,12 +234,12 @@ class MacosTextField extends StatefulWidget {
   ///  * [maxLength], which discusses the precise meaning of "number of
   ///    characters" and how it may differ from the intuitive meaning.
   const MacosTextField({
-    Key? key,
+    super.key,
     this.controller,
     this.focusNode,
-    this.decoration = _kDefaultRoundedBorderDecoration,
-    this.focusedDecoration = _kDefaultFocusedBorderDecoration,
-    this.padding = const EdgeInsets.all(6.0),
+    this.decoration = kDefaultRoundedBorderDecoration,
+    this.focusedDecoration = kDefaultFocusedBorderDecoration,
+    this.padding = const EdgeInsets.all(4.0),
     this.placeholder,
     this.placeholderStyle = const TextStyle(
       fontWeight: FontWeight.w400,
@@ -251,7 +258,7 @@ class MacosTextField extends StatefulWidget {
     this.textAlign = TextAlign.start,
     this.textAlignVertical,
     this.readOnly = false,
-    ToolbarOptions? toolbarOptions,
+    this.contextMenuBuilder = _defaultContextMenuBuilder,
     this.showCursor,
     this.autofocus = false,
     this.obscuringCharacter = '•',
@@ -310,20 +317,7 @@ class MacosTextField extends StatefulWidget {
                 !identical(keyboardType, TextInputType.text),
             'Use keyboardType TextInputType.multiline when using TextInputAction.newline on a multiline TextField.'),
         keyboardType = keyboardType ??
-            (maxLines == 1 ? TextInputType.text : TextInputType.multiline),
-        toolbarOptions = toolbarOptions ??
-            (obscureText
-                ? const ToolbarOptions(
-                    selectAll: true,
-                    paste: true,
-                  )
-                : const ToolbarOptions(
-                    copy: true,
-                    cut: true,
-                    selectAll: true,
-                    paste: true,
-                  )),
-        super(key: key);
+            (maxLines == 1 ? TextInputType.text : TextInputType.multiline);
 
   /// Creates a borderless macOS-style text field.
   ///
@@ -362,12 +356,12 @@ class MacosTextField extends StatefulWidget {
   ///  * [maxLength], which discusses the precise meaning of "number of
   ///    characters" and how it may differ from the intuitive meaning.
   const MacosTextField.borderless({
-    Key? key,
+    super.key,
     this.controller,
     this.focusNode,
     this.decoration,
     this.focusedDecoration,
-    this.padding = const EdgeInsets.fromLTRB(2.0, 4.0, 2.0, 4.0),
+    this.padding = const EdgeInsets.symmetric(horizontal: 2.0, vertical: 4.0),
     this.placeholder,
     this.placeholderStyle = _kDefaultPlaceholderStyle,
     this.prefix,
@@ -383,7 +377,6 @@ class MacosTextField extends StatefulWidget {
     this.textAlign = TextAlign.start,
     this.textAlignVertical,
     this.readOnly = false,
-    ToolbarOptions? toolbarOptions,
     this.showCursor,
     this.autofocus = false,
     this.obscuringCharacter = '•',
@@ -418,6 +411,7 @@ class MacosTextField extends StatefulWidget {
     this.scrollPhysics,
     this.autofillHints,
     this.restorationId,
+    this.contextMenuBuilder = _defaultContextMenuBuilder,
   })  : smartDashesType = smartDashesType ??
             (obscureText ? SmartDashesType.disabled : SmartDashesType.enabled),
         smartQuotesType = smartQuotesType ??
@@ -442,20 +436,16 @@ class MacosTextField extends StatefulWidget {
                 !identical(keyboardType, TextInputType.text),
             'Use keyboardType TextInputType.multiline when using TextInputAction.newline on a multiline TextField.'),
         keyboardType = keyboardType ??
-            (maxLines == 1 ? TextInputType.text : TextInputType.multiline),
-        toolbarOptions = toolbarOptions ??
-            (obscureText
-                ? const ToolbarOptions(
-                    selectAll: true,
-                    paste: true,
-                  )
-                : const ToolbarOptions(
-                    copy: true,
-                    cut: true,
-                    selectAll: true,
-                    paste: true,
-                  )),
-        super(key: key);
+            (maxLines == 1 ? TextInputType.text : TextInputType.multiline);
+
+  static Widget _defaultContextMenuBuilder(
+    BuildContext context,
+    EditableTextState editableTextState,
+  ) {
+    return CupertinoAdaptiveTextSelectionToolbar.editableText(
+      editableTextState: editableTextState,
+    );
+  }
 
   /// Controls the text being edited.
   ///
@@ -561,12 +551,14 @@ class MacosTextField extends StatefulWidget {
   /// {@macro flutter.widgets.editableText.textAlign}
   final TextAlign textAlign;
 
-  /// Configuration of toolbar options.
+  /// {@macro flutter.widgets.EditableText.contextMenuBuilder}
   ///
-  /// If not set, select all and paste will default to be enabled. Copy and cut
-  /// will be disabled if [obscureText] is true. If [readOnly] is true,
-  /// paste and cut will be disabled regardless.
-  final ToolbarOptions toolbarOptions;
+  /// If not provided, will build a default menu based on the platform.
+  ///
+  /// See also:
+  ///
+  ///  * [CupertinoAdaptiveTextSelectionToolbar], which is built by default.
+  final EditableTextContextMenuBuilder? contextMenuBuilder;
 
   /// {@macro flutter.material.InputDecorator.textAlignVertical}
   final TextAlignVertical? textAlignVertical;
@@ -727,7 +719,7 @@ class MacosTextField extends StatefulWidget {
   final String? restorationId;
 
   @override
-  _MacosTextFieldState createState() => _MacosTextFieldState();
+  State<MacosTextField> createState() => _MacosTextFieldState();
 
   @override
   void debugFillProperties(DiagnosticPropertiesBuilder properties) {
@@ -745,7 +737,7 @@ class MacosTextField extends StatefulWidget {
     properties.add(DiagnosticsProperty<BoxDecoration>(
       'decoration',
       decoration,
-      defaultValue: _kDefaultRoundedBorderDecoration,
+      defaultValue: kDefaultRoundedBorderDecoration,
     ));
     properties.add(DiagnosticsProperty<EdgeInsetsGeometry>('padding', padding));
     properties.add(StringProperty('placeholder', placeholder));
@@ -767,7 +759,7 @@ class MacosTextField extends StatefulWidget {
       'clearButtonMode',
       clearButtonMode,
     ));
-    properties.add(EnumProperty<TextInputType>(
+    properties.add(DiagnosticsProperty<TextInputType>(
       'keyboardType',
       keyboardType,
       defaultValue: TextInputType.text,
@@ -878,6 +870,10 @@ class MacosTextField extends StatefulWidget {
       textAlignVertical,
       defaultValue: null,
     ));
+    properties.add(DiagnosticsProperty<EditableTextContextMenuBuilder>(
+      'contextMenuBuilder',
+      contextMenuBuilder,
+    ));
   }
 }
 
@@ -927,10 +923,6 @@ class _MacosTextFieldState extends State<MacosTextField>
     _effectiveFocusNode.addListener(_handleFocusChanged);
   }
 
-  void _handleFocusChanged() {
-    setState(() {});
-  }
-
   @override
   void didUpdateWidget(MacosTextField oldWidget) {
     super.didUpdateWidget(oldWidget);
@@ -944,11 +936,8 @@ class _MacosTextFieldState extends State<MacosTextField>
     _effectiveFocusNode.canRequestFocus = widget.enabled ?? true;
   }
 
-  @override
-  void restoreState(RestorationBucket? oldBucket, bool initialRestore) {
-    if (_controller != null) {
-      _registerController();
-    }
+  void _handleFocusChanged() {
+    setState(() {});
   }
 
   void _registerController() {
@@ -967,18 +956,6 @@ class _MacosTextFieldState extends State<MacosTextField>
     }
   }
 
-  @override
-  String? get restorationId => widget.restorationId;
-
-  @override
-  void dispose() {
-    _focusNode?.dispose();
-    _controller?.dispose();
-    super.dispose();
-  }
-
-  EditableTextState get _editableText => editableTextKey.currentState!;
-
   void _requestKeyboard() {
     _editableText.requestKeyboard();
   }
@@ -986,8 +963,9 @@ class _MacosTextFieldState extends State<MacosTextField>
   bool _shouldShowSelectionHandles(SelectionChangedCause? cause) {
     // When the text field is activated by something that doesn't trigger the
     // selection overlay, we shouldn't show the handles either.
-    if (!_selectionGestureDetectorBuilder.shouldShowSelectionToolbar)
+    if (!_selectionGestureDetectorBuilder.shouldShowSelectionToolbar) {
       return false;
+    }
 
     // On macOS, we don't show handles when the selection is collapsed.
     if (_effectiveController.selection.isCollapsed) return false;
@@ -1013,9 +991,6 @@ class _MacosTextFieldState extends State<MacosTextField>
       });
     }
   }
-
-  @override
-  bool get wantKeepAlive => _controller?.value.text.isNotEmpty == true;
 
   bool _shouldShowAttachment({
     required OverlayVisibilityMode attachment,
@@ -1056,26 +1031,6 @@ class _MacosTextFieldState extends State<MacosTextField>
     );
   }
 
-  // True if any surrounding decoration widgets will be shown.
-  bool get _hasDecoration {
-    return widget.placeholder != null ||
-        widget.clearButtonMode != OverlayVisibilityMode.never ||
-        widget.prefix != null ||
-        widget.suffix != null;
-  }
-
-  // Provide default behavior if widget.textAlignVertical is not set.
-  // TextField has top alignment by default, unless it has decoration
-  // like a prefix or suffix, in which case it's aligned to the center.
-  TextAlignVertical get _textAlignVertical {
-    if (widget.textAlignVertical != null) {
-      return widget.textAlignVertical!;
-    }
-    return widget.maxLines == null || widget.maxLines! > 1
-        ? TextAlignVertical.center
-        : TextAlignVertical.top;
-  }
-
   Widget _addTextDependentAttachments(
     Widget editableText,
     TextStyle textStyle,
@@ -1085,6 +1040,13 @@ class _MacosTextFieldState extends State<MacosTextField>
     // part.
     if (!_hasDecoration) {
       return editableText;
+    }
+
+    Color iconsColor = MacosTheme.of(context).brightness.isDark
+        ? const Color.fromRGBO(255, 255, 255, 0.55)
+        : const Color.fromRGBO(0, 0, 0, 0.5);
+    if (widget.enabled != null && widget.enabled == false) {
+      iconsColor = iconsColor.withOpacity(0.2);
     }
 
     // Otherwise, listen to the current state of the text entry.
@@ -1107,7 +1069,13 @@ class _MacosTextFieldState extends State<MacosTextField>
                   left: 6.0,
                   right: 6.0,
                 ),
-                child: widget.prefix!,
+                child: MacosIconTheme(
+                  data: MacosIconThemeData(
+                    color: iconsColor,
+                    size: 16.0,
+                  ),
+                  child: widget.prefix!,
+                ),
               ),
             // In the middle part, stack the placeholder on top of the main EditableText
             // if needed.
@@ -1152,8 +1120,9 @@ class _MacosTextFieldState extends State<MacosTextField>
                           final bool textChanged =
                               _effectiveController.text.isNotEmpty;
                           _effectiveController.clear();
-                          if (widget.onChanged != null && textChanged)
+                          if (widget.onChanged != null && textChanged) {
                             widget.onChanged!(_effectiveController.text);
+                          }
                         }
                       : null,
                   child: Padding(
@@ -1165,11 +1134,8 @@ class _MacosTextFieldState extends State<MacosTextField>
                     ),
                     child: Icon(
                       CupertinoIcons.clear_thick_circled,
-                      size: 18.0,
-                      color: MacosDynamicColor.resolve(
-                        _kClearButtonColor,
-                        context,
-                      ),
+                      size: 16.0,
+                      color: iconsColor,
                     ),
                   ),
                 ),
@@ -1178,6 +1144,49 @@ class _MacosTextFieldState extends State<MacosTextField>
         );
       },
     );
+  }
+
+  @override
+  void restoreState(RestorationBucket? oldBucket, bool initialRestore) {
+    if (_controller != null) {
+      _registerController();
+    }
+  }
+
+  @override
+  String? get restorationId => widget.restorationId;
+
+  @override
+  void dispose() {
+    _focusNode?.dispose();
+    _controller?.dispose();
+    _effectiveFocusNode.removeListener(_handleFocusChanged);
+    super.dispose();
+  }
+
+  EditableTextState get _editableText => editableTextKey.currentState!;
+
+  @override
+  bool get wantKeepAlive => _controller?.value.text.isNotEmpty == true;
+
+  // True if any surrounding decoration widgets will be shown.
+  bool get _hasDecoration {
+    return widget.placeholder != null ||
+        widget.clearButtonMode != OverlayVisibilityMode.never ||
+        widget.prefix != null ||
+        widget.suffix != null;
+  }
+
+  // Provide default behavior if widget.textAlignVertical is not set.
+  // TextField has top alignment by default, unless it has decoration
+  // like a prefix or suffix, in which case it's aligned to the center.
+  TextAlignVertical get _textAlignVertical {
+    if (widget.textAlignVertical != null) {
+      return widget.textAlignVertical!;
+    }
+    return widget.maxLines == null || widget.maxLines! > 1
+        ? TextAlignVertical.center
+        : TextAlignVertical.top;
   }
 
   @override
@@ -1240,18 +1249,31 @@ class _MacosTextFieldState extends State<MacosTextField>
       ),
     );
 
-    final placeholderStyle = textStyle.merge(resolvedPlaceholderStyle);
+    final placeholderStyle = textStyle.merge(enabled
+        ? resolvedPlaceholderStyle
+        : resolvedPlaceholderStyle!
+            .copyWith(color: resolvedPlaceholderStyle.color!.withOpacity(0.2)));
 
     final Brightness keyboardAppearance =
         widget.keyboardAppearance ?? MacosTheme.brightnessOf(context);
-    final Color cursorColor =
-        MacosDynamicColor.maybeResolve(widget.cursorColor, context) ??
-            themeData.primaryColor;
+    Color? cursorColor;
+    cursorColor = MacosDynamicColor.maybeResolve(widget.cursorColor, context);
+    cursorColor ??=
+        themeData.brightness.isDark ? MacosColors.white : MacosColors.black;
     final Color disabledColor =
         MacosDynamicColor.resolve(_kDisabledBackground, context);
 
-    final Color? decorationColor =
+    Color? decorationColor =
         MacosDynamicColor.maybeResolve(widget.decoration?.color, context);
+    if (decorationColor.runtimeType == ResolvedMacosDynamicColor) {
+      if ((decorationColor as ResolvedMacosDynamicColor).color ==
+              const Color(0xffffffff) ||
+          (decorationColor).darkColor == const Color(0xff000000)) {
+        decorationColor = themeData.brightness.isDark
+            ? const Color.fromRGBO(30, 30, 30, 1)
+            : MacosColors.white;
+      }
+    }
 
     final BoxBorder? border = widget.decoration?.border;
     Border? resolvedBorder = border as Border?;
@@ -1276,11 +1298,16 @@ class _MacosTextFieldState extends State<MacosTextField>
 
     final BoxDecoration? effectiveDecoration = widget.decoration?.copyWith(
       border: resolvedBorder,
-      color: enabled ? decorationColor : (decorationColor ?? disabledColor),
+      color: enabled ? decorationColor : disabledColor,
     );
 
     final BoxDecoration? focusedDecoration = widget.focusedDecoration?.copyWith(
-      border: Border.all(width: 3.0, color: themeData.primaryColor),
+      border: Border.all(
+        width: 3.0,
+        color: themeData.brightness.isDark
+            ? const Color.fromRGBO(26, 169, 255, 0.3)
+            : const Color.fromRGBO(0, 103, 244, 0.25),
+      ),
     );
 
     final focusedPlaceholderDecoration = focusedDecoration?.copyWith(
@@ -1318,7 +1345,6 @@ class _MacosTextFieldState extends State<MacosTextField>
             key: editableTextKey,
             controller: controller,
             readOnly: widget.readOnly,
-            toolbarOptions: widget.toolbarOptions,
             showCursor: widget.showCursor,
             showSelectionHandles: _showSelectionHandles,
             focusNode: _effectiveFocusNode,
@@ -1370,6 +1396,7 @@ class _MacosTextFieldState extends State<MacosTextField>
             autofillHints: widget.autofillHints,
             restorationId: 'editable',
             mouseCursor: SystemMouseCursors.text,
+            contextMenuBuilder: widget.contextMenuBuilder,
           ),
         ),
       ),
