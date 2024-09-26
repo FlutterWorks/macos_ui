@@ -1,3 +1,15 @@
+## [2.1.0]
+* Updated dependencies
+* Support macOS 15
+
+## [2.0.9]
+### 🛠️ Updated 🛠️
+* Add `expandDisclosureItems` flag to `SidebarItem` to optionally (default not changed) expand disclosure items initially
+
+## [2.0.8]
+### 🛠️ Updated 🛠️
+* Fixed `SidebarItem` text overflowing.
+
 ## [2.0.7]
 ### 🛠️ Updated 🛠️
 * Made most widgets aware of the user’s accent color and window state by adding respective fields to `MacosThemeData`.

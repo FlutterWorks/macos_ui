@@ -221,6 +221,7 @@ class _WidgetGalleryState extends State<WidgetGallery> {
                       label: Text('ResizablePane'),
                     ),
                   ],
+                  expandDisclosureItems: true,
                 ),
                 SidebarItem(
                   leading: MacosImageIcon(
